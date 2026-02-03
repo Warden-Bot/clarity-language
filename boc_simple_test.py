@@ -39,7 +39,7 @@ def test_simple_boc():
     
     try:
         ast = parse_boc_code(simple_boc_code)
-        print("\n✓ Parsed successfully!")
+        print("\nParsed successfully!")
         print("\nThe bot-optimized language successfully demonstrates:")
         print("- BELIEF statements with confidence levels")
         print("- REASONING_CONTEXT for logical inference") 
@@ -100,5 +100,5 @@ if __name__ == "__main__":
     describe_evolution()
     
     if success:
-        print("\n✓ Bot-Optimized Clarity (BOC) successfully demonstrates the evolution")
+        print("\nBot-Optimized Clarity (BOC) successfully demonstrates the evolution")
         print("  of the language concept toward a bot-first design philosophy.")
