@@ -1,4 +1,4 @@
-# Clarity Language Project
+# Clarity Language
 
 A dual-layer programming language designed for human-AI collaborative programming.
 
@@ -27,17 +27,20 @@ The dual-layer architecture ensures that both humans and AI agents can effective
 - Cryptographic proofs ensuring semantic equivalence
 - Comprehensive source maps for cross-layer debugging
 
-## Installation
+## Files
 
-```bash
-pip install -r requirements.txt
-```
+- `clarity_parser.py` - Parser for the Clarity surface language
+- `boc_parser.py` - Parser for the Bytecode Optimized Clarity (BOC) deep layer
+- `translator.py` - Translator between surface and deep layers with provenance tracking
+- `clarity_interpreter.py` - Interpreter for Clarity code
+- Various `.clar` files - Sample Clarity programs
+- Documentation files in Markdown format
 
 ## Usage
 
 ```python
-from language_project.clarity_parser import Lexer, Parser
-from language_project.translator import ClarityToBOCTranslator
+from clarity_parser import Lexer, Parser
+from translator import ClarityToBOCTranslator
 
 # Example usage
 code = """
@@ -61,7 +64,7 @@ print(result)
 
 ## Contributing
 
-See the documentation in the `language_project/` directory for detailed information about contributing to the Clarity language project.
+See the documentation files for detailed information about contributing to the Clarity language project.
 
 ## License
 

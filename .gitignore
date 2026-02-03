@@ -5,19 +5,29 @@ IDENTITY.md
 SOUL.md
 TOOLS.md
 USER.md
+BOOTSTRAP.md
 memory/
 canvas/
 skills/
 
-# Temporary backup
-tmp_backup/
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Moltbook integration files (not part of language project)
-*.py
-*.js
-*.json
-*.bat
-*.ps1
+# Environment
+.env
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Python cache
 __pycache__/
