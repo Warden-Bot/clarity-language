@@ -8,8 +8,6 @@ import re
 import json
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
-from uncertainty_propagation import UncertaintyValue, UncertaintyPropagator, UncertaintyType
-from belief_management import BeliefManager, Evidence, EvidenceType, DecayFunction
 
 
 class BOCTokenType(Enum):
@@ -18,7 +16,6 @@ class BOCTokenType(Enum):
     NUMBER = "NUMBER"
     STRING = "STRING"
     BOOLEAN = "BOOLEAN"
-    UNCERTAINTY = "UNCERTAINTY"  # ± value notation
     
     # Keywords
     BELIEF = "BELIEF"
@@ -31,10 +28,6 @@ class BOCTokenType(Enum):
     ENTITY = "ENTITY"
     AT = "AT"
     TIMESTAMP = "TIMESTAMP"
-    UPDATE_BELIEF = "UPDATE_BELIEF"
-    CONFIDENCE_DECAY = "CONFIDENCE_DECAY"
-    AGENT_COORDINATION = "AGENT_COORDINATION"
-    PROVENANCE = "PROVENANCE"
     
     # Operators
     ASSIGN = "ASSIGN"      # =
@@ -111,11 +104,6 @@ class BOCLexer:
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
     
-    def skip_comment(self):
-        """Skip over single-line comments."""
-        while self.current_char is not None and self.current_char != '\n':
-            self.advance()
-    
     def read_number(self) -> str:
         """Read a number token."""
         result = ''
@@ -160,13 +148,6 @@ class BOCLexer:
                 self.skip_whitespace()
                 continue
             
-            # Comments
-            if self.current_char == '/' and self.peek() == '/':
-                self.advance()  # skip first '/'
-                self.advance()  # skip second '/'
-                self.skip_comment()
-                continue
-            
             if self.current_char.isdigit():
                 start_line, start_col = self.line, self.column
                 value = self.read_number()
@@ -186,10 +167,6 @@ class BOCLexer:
                     'calculate_with_uncertainty': BOCTokenType.CALCULATE_WITH_UNCERTAINTY,
                     'structured_knowledge': BOCTokenType.STRUCTURED_KNOWLEDGE,
                     'entity': BOCTokenType.ENTITY,
-                    'update_belief': BOCTokenType.UPDATE_BELIEF,
-                    'confidence_decay': BOCTokenType.CONFIDENCE_DECAY,
-                    'agent_coordination': BOCTokenType.AGENT_COORDINATION,
-                    'provenance': BOCTokenType.PROVENANCE,
                     'true': BOCTokenType.BOOLEAN,
                     'false': BOCTokenType.BOOLEAN,
                 }
@@ -207,22 +184,11 @@ class BOCLexer:
                 self.advance()
                 self.advance()
                 return BOCToken(BOCTokenType.RANGE, '..', self.line, self.column - 1)
-
+            
             if self.current_char == '=' and self.peek() == '>':
                 self.advance()
                 self.advance()
                 return BOCToken(BOCTokenType.LAMBDA, '=>', self.line, self.column - 1)
-
-            # Uncertainty notation ±
-            if self.current_char == '±':
-                start_line, start_col = self.line, self.column
-                self.advance()
-                # Read the uncertainty value
-                uncertainty_value = ''
-                while self.current_char is not None and (self.current_char.isdigit() or self.current_char == '.'):
-                    uncertainty_value += self.current_char
-                    self.advance()
-                return BOCToken(BOCTokenType.UNCERTAINTY, f'±{uncertainty_value}', start_line, start_col)
             
             # Single character tokens
             char_tokens = {
@@ -281,181 +247,6 @@ class BOCStructuredKnowledge(BOCNode):
         self.node_type = 'BOCStructuredKnowledge'
 
 
-class BOCUpdateBelief(BOCNode):
-    def __init__(self, belief_name, new_confidence, evidence_source, evidence_type=None):
-        self.belief_name = belief_name
-        self.new_confidence = new_confidence
-        self.evidence_source = evidence_source
-        self.evidence_type = evidence_type or EvidenceType.NEUTRAL
-        self.node_type = 'BOCUpdateBelief'
-        
-        # Create evidence object for belief manager
-        from datetime import datetime
-        self.evidence = Evidence(
-            content=f"Belief update to {new_confidence}",
-            confidence=new_confidence,
-            source=evidence_source or "unknown",
-            timestamp=datetime.now(),
-            evidence_type=self.evidence_type,
-            weight=1.0
-        )
-    
-    def apply_to_manager(self, belief_manager: BeliefManager) -> bool:
-        """Apply this belief update to a belief manager."""
-        try:
-            # Extract confidence value if it's a dictionary
-            confidence = self.new_confidence
-            if isinstance(confidence, dict) and 'value' in confidence:
-                confidence = float(confidence['value'])
-            elif isinstance(confidence, str):
-                confidence = float(confidence)
-            
-            return belief_manager.update_belief(
-                self.belief_name, 
-                confidence,
-                self.evidence
-            )
-        except (ValueError, TypeError):
-            return False
-
-
-class BOCConfidenceDecay(BOCNode):
-    def __init__(self, belief_name, decay_function, time_period):
-        self.belief_name = belief_name
-        self.decay_function = decay_function
-        self.time_period = time_period
-        self.node_type = 'BOCConfidenceDecay'
-        
-        # Parse decay function and period
-        self.parsed_decay_function = self._parse_decay_function(decay_function)
-        self.parsed_period = self._parse_time_period(time_period)
-    
-    def _parse_decay_function(self, decay_func):
-        """Parse decay function string to DecayFunction enum."""
-        if isinstance(decay_func, str):
-            decay_lower = decay_func.lower()
-            if 'exponential' in decay_lower:
-                rate = self._extract_rate(decay_func)
-                return (DecayFunction.EXPONENTIAL, rate)
-            elif 'linear' in decay_lower:
-                rate = self._extract_rate(decay_func)
-                return (DecayFunction.LINEAR, rate)
-            elif 'logarithmic' in decay_lower:
-                rate = self._extract_rate(decay_func)
-                return (DecayFunction.LOGARITHMIC, rate)
-            elif 'step' in decay_lower:
-                rate = self._extract_rate(decay_func)
-                return (DecayFunction.STEP, rate)
-        
-        return (DecayFunction.EXPONENTIAL, 0.1)  # Default
-    
-    def _parse_time_period(self, time_period):
-        """Parse time period string to timedelta."""
-        if isinstance(time_period, str):
-            if 'day' in time_period.lower():
-                days = self._extract_number(time_period)
-                from datetime import timedelta
-                return timedelta(days=days)
-            elif 'hour' in time_period.lower():
-                hours = self._extract_number(time_period)
-                from datetime import timedelta
-                return timedelta(hours=hours)
-            elif 'minute' in time_period.lower():
-                minutes = self._extract_number(time_period)
-                from datetime import timedelta
-                return timedelta(minutes=minutes)
-        
-        from datetime import timedelta
-        return timedelta(hours=1)  # Default
-    
-    def _extract_rate(self, func_str):
-        """Extract decay rate from function string."""
-        import re
-        match = re.search(r'(\d+\.?\d*)', func_str)
-        return float(match.group(1)) if match else 0.1
-    
-    def _extract_number(self, period_str):
-        """Extract number from period string."""
-        import re
-        match = re.search(r'(\d+\.?\d*)', period_str)
-        return float(match.group(1)) if match else 1.0
-    
-    def apply_to_manager(self, belief_manager: BeliefManager) -> bool:
-        """Apply this confidence decay to a belief manager."""
-        try:
-            if self.belief_name in belief_manager.beliefs:
-                belief = belief_manager.beliefs[self.belief_name]
-                belief.decay_function = self.parsed_decay_function[0]
-                belief.decay_rate = self.parsed_decay_function[1]
-                belief.decay_period = self.parsed_period
-                return True
-        except Exception:
-            pass
-        
-        return False
-
-
-class BOCAgentCoordination(BOCNode):
-    def __init__(self, coordinator, participants, coordination_type, constraints):
-        self.coordinator = coordinator
-        self.participants = participants
-        self.coordination_type = coordination_type
-        self.constraints = constraints
-        self.node_type = 'BOCAgentCoordination'
-
-
-class BOCProvenance(BOCNode):
-    def __init__(self, source, timestamp, chain_of_custody):
-        self.source = source
-        self.timestamp = timestamp
-        self.chain_of_custody = chain_of_custody
-        self.node_type = 'BOCProvenance'
-
-
-class BOCUncertainty(BOCNode):
-    def __init__(self, value, uncertainty_range, uncertainty_value=None):
-        self.value = value
-        self.uncertainty_range = uncertainty_range
-        self.uncertainty_value = uncertainty_value
-        self.node_type = 'BOCUncertainty'
-        
-        # Create UncertaintyValue object if we have both value and uncertainty
-        if value is not None and uncertainty_range is not None:
-            self.uncertainty_value = UncertaintyValue(
-                value=float(value),
-                uncertainty=float(uncertainty_range),
-                uncertainty_type=UncertaintyType.ABSOLUTE
-            )
-    
-    def get_absolute_uncertainty(self):
-        """Get absolute uncertainty."""
-        if self.uncertainty_value:
-            return self.uncertainty_value.get_absolute_uncertainty()
-        return self.uncertainty_range
-    
-    def get_relative_uncertainty(self):
-        """Get relative uncertainty."""
-        if self.uncertainty_value:
-            return self.uncertainty_value.get_relative_uncertainty()
-        if self.value != 0:
-            return self.uncertainty_range / abs(self.value)
-        return 0.0
-    
-    def propagate_add(self, other_uncertainty):
-        """Propagate uncertainty through addition."""
-        if self.uncertainty_value and other_uncertainty.uncertainty_value:
-            result = UncertaintyPropagator.add(self.uncertainty_value, other_uncertainty.uncertainty_value)
-            return BOCUncertainty(result.value, result.get_absolute_uncertainty(), result)
-        return BOCUncertainty(None, self.uncertainty_range + other_uncertainty.uncertainty_range)
-    
-    def propagate_multiply(self, other_uncertainty):
-        """Propagate uncertainty through multiplication."""
-        if self.uncertainty_value and other_uncertainty.uncertainty_value:
-            result = UncertaintyPropagator.multiply(self.uncertainty_value, other_uncertainty.uncertainty_value)
-            return BOCUncertainty(result.value, result.get_absolute_uncertainty(), result)
-        return BOCUncertainty(None, max(self.uncertainty_range, other_uncertainty.uncertainty_range))
-
-
 class BOCParser:
     """Parser for Bot-Optimized Clarity."""
     
@@ -497,14 +288,6 @@ class BOCParser:
             return self.parse_calculate_with_uncertainty()
         elif token_type == BOCTokenType.STRUCTURED_KNOWLEDGE:
             return self.parse_structured_knowledge()
-        elif token_type == BOCTokenType.UPDATE_BELIEF:
-            return self.parse_update_belief()
-        elif token_type == BOCTokenType.CONFIDENCE_DECAY:
-            return self.parse_confidence_decay()
-        elif token_type == BOCTokenType.AGENT_COORDINATION:
-            return self.parse_agent_coordination()
-        elif token_type == BOCTokenType.PROVENANCE:
-            return self.parse_provenance()
         elif token_type == BOCTokenType.IDENTIFIER:
             return self.parse_assignment()
         else:
@@ -529,50 +312,7 @@ class BOCParser:
         self.eat(BOCTokenType.CALCULATE_WITH_UNCERTAINTY)
         attributes = self.parse_attributes()
         content = self.parse_block_content()
-        
-        # Enhanced parsing for uncertainty calculations
-        result = {
-            'type': 'CalculateWithUncertainty', 
-            'attributes': attributes, 
-            'content': content,
-            'uncertainty_analysis': {}
-        }
-        
-        # Extract formula and input uncertainties from content
-        formula = None
-        input_uncertainties = {}
-        
-        for item in content:
-            if isinstance(item, dict) and item.get('key') == 'formula':
-                formula = item.get('value')
-            elif isinstance(item, dict) and item.get('key') == 'input_uncertainties':
-                # Parse uncertainty values
-                uncertainty_obj = item.get('value', {})
-                if isinstance(uncertainty_obj, dict) and 'properties' in uncertainty_obj:
-                    for var_name, var_uncertainty in uncertainty_obj['properties'].items():
-                        if isinstance(var_uncertainty, str) and '±' in var_uncertainty:
-                            parsed_unc = self._parse_uncertainty_string(var_uncertainty)
-                            input_uncertainties[var_name] = parsed_unc
-        
-        if formula and input_uncertainties:
-            result['uncertainty_analysis'] = {
-                'formula': formula,
-                'input_uncertainties': input_uncertainties,
-                'propagation_possible': True
-            }
-        
-        return result
-    
-    def _parse_uncertainty_string(self, uncertainty_str):
-        """Parse uncertainty string like '±0.1' into UncertaintyValue."""
-        if uncertainty_str.startswith('±'):
-            uncertainty_value = float(uncertainty_str[1:].strip())
-            return {
-                'type': 'UncertaintyValue',
-                'absolute_uncertainty': uncertainty_value,
-                'relative_uncertainty': None  # Will be calculated when base value known
-            }
-        return None
+        return {'type': 'CalculateWithUncertainty', 'attributes': attributes, 'content': content}
     
     def parse_attributes(self):
         """Parse attribute list like @attr1(...) @attr2(...)"""
@@ -663,97 +403,6 @@ class BOCParser:
         content = self.parse_block_content()
         return BOCStructuredKnowledge(attributes, content)
     
-    def parse_update_belief(self):
-        """Parse belief update statement."""
-        self.eat(BOCTokenType.UPDATE_BELIEF)
-        
-        # Parse belief name
-        belief_name = self.current_token.value
-        self.eat(BOCTokenType.IDENTIFIER)
-        
-        self.eat(BOCTokenType.LPAREN)
-        new_confidence = self.parse_expression()
-        self.eat(BOCTokenType.RPAREN)
-        
-        # Parse evidence source
-        evidence_source = None
-        if self.current_token.type == BOCTokenType.IDENTIFIER and self.current_token.value == 'evidence':
-            self.eat(BOCTokenType.IDENTIFIER)
-            self.eat(BOCTokenType.COLON)
-            evidence_source = self.parse_expression()
-        
-        return BOCUpdateBelief(belief_name, new_confidence, evidence_source)
-    
-    def parse_confidence_decay(self):
-        """Parse confidence decay statement."""
-        self.eat(BOCTokenType.CONFIDENCE_DECAY)
-        
-        # Parse belief name
-        belief_name = self.current_token.value
-        self.eat(BOCTokenType.IDENTIFIER)
-        
-        self.eat(BOCTokenType.LPAREN)
-        decay_function = self.parse_expression()
-        self.eat(BOCTokenType.RPAREN)
-        
-        # Parse time period
-        time_period = None
-        if self.current_token.type == BOCTokenType.IDENTIFIER and self.current_token.value == 'period':
-            self.eat(BOCTokenType.IDENTIFIER)
-            self.eat(BOCTokenType.COLON)
-            time_period = self.parse_expression()
-        
-        return BOCConfidenceDecay(belief_name, decay_function, time_period)
-    
-    def parse_agent_coordination(self):
-        """Parse agent coordination statement."""
-        self.eat(BOCTokenType.AGENT_COORDINATION)
-        
-        # Parse coordinator
-        coordinator = None
-        if self.current_token.type == BOCTokenType.IDENTIFIER and self.current_token.value == 'coordinator':
-            self.eat(BOCTokenType.IDENTIFIER)
-            self.eat(BOCTokenType.COLON)
-            coordinator = self.parse_expression()
-        
-        content = self.parse_block_content()
-        
-        # Extract participants and constraints from content
-        participants = []
-        coordination_type = None
-        constraints = []
-        
-        for item in content:
-            if isinstance(item, dict) and item.get('key') == 'participants':
-                participants = item.get('value', {}).get('items', [])
-            elif isinstance(item, dict) and item.get('key') == 'type':
-                coordination_type = item.get('value')
-            elif isinstance(item, dict) and item.get('key') == 'constraints':
-                constraints = item.get('value', {}).get('items', [])
-        
-        return BOCAgentCoordination(coordinator, participants, coordination_type, constraints)
-    
-    def parse_provenance(self):
-        """Parse provenance statement."""
-        self.eat(BOCTokenType.PROVENANCE)
-        
-        content = self.parse_block_content()
-        
-        # Extract source, timestamp, and chain of custody
-        source = None
-        timestamp = None
-        chain_of_custody = []
-        
-        for item in content:
-            if isinstance(item, dict) and item.get('key') == 'source':
-                source = item.get('value')
-            elif isinstance(item, dict) and item.get('key') == 'timestamp':
-                timestamp = item.get('value')
-            elif isinstance(item, dict) and item.get('key') == 'chain_of_custody':
-                chain_of_custody = item.get('value', {}).get('items', [])
-        
-        return BOCProvenance(source, timestamp, chain_of_custody)
-    
     def parse_assignment(self):
         """Parse a simple assignment."""
         key = self.current_token.value
@@ -763,22 +412,10 @@ class BOCParser:
         return {'type': 'Assignment', 'key': key, 'value': value}
     
     def parse_expression(self):
-        """Parse an expression with uncertainty support."""
+        """Parse an expression."""
         # Handle array expressions first
         if self.current_token.type == BOCTokenType.LBRACKET:
             return self.parse_array()
-        
-        # Handle uncertainty expressions
-        if self.current_token.type == BOCTokenType.UNCERTAINTY:
-            return self.parse_uncertainty_expression()
-        
-        # Handle entity expressions
-        if self.current_token.type == BOCTokenType.ENTITY:
-            return self.parse_entity_expression()
-        
-        # Handle object expressions (for nested structures)
-        if self.current_token.type == BOCTokenType.LBRACE:
-            return self.parse_object_expression()
         
         # For now, just handle basic expressions
         if self.current_token.type in [BOCTokenType.STRING, BOCTokenType.NUMBER, BOCTokenType.BOOLEAN]:
@@ -792,79 +429,6 @@ class BOCParser:
             return {'type': 'Identifier', 'value': value}
         else:
             raise Exception(f"Unexpected token in expression: {self.current_token.type.name}")
-    
-    def parse_entity_expression(self):
-        """Parse entity expressions like entity("name", {...})"""
-        self.eat(BOCTokenType.ENTITY)
-        
-        self.eat(BOCTokenType.LPAREN)
-        entity_name = self.parse_expression()
-        self.eat(BOCTokenType.COMMA)
-        
-        # Parse entity properties
-        properties = self.parse_object_expression()
-        
-        self.eat(BOCTokenType.RPAREN)
-        
-        return {
-            'type': 'Entity',
-            'name': entity_name,
-            'properties': properties
-        }
-    
-    def parse_object_expression(self):
-        """Parse object expressions like {key: value, ...}"""
-        self.eat(BOCTokenType.LBRACE)
-        
-        properties = {}
-        
-        while self.current_token.type != BOCTokenType.RBRACE:
-            # Parse key
-            if self.current_token.type == BOCTokenType.IDENTIFIER:
-                key = self.current_token.value
-                self.eat(BOCTokenType.IDENTIFIER)
-            elif self.current_token.type == BOCTokenType.STRING:
-                key = self.current_token.value
-                self.eat(BOCTokenType.STRING)
-            else:
-                raise Exception(f"Expected identifier or string as object key, got {self.current_token.type.name}")
-            
-            self.eat(BOCTokenType.COLON)
-            
-            # Parse value
-            value = self.parse_expression()
-            properties[key] = value
-            
-            # Check for comma
-            if self.current_token.type == BOCTokenType.COMMA:
-                self.eat(BOCTokenType.COMMA)
-            elif self.current_token.type != BOCTokenType.RBRACE:
-                raise Exception(f"Expected comma or closing brace, got {self.current_token.type.name}")
-        
-        self.eat(BOCTokenType.RBRACE)
-        
-        return {
-            'type': 'Object',
-            'properties': properties
-        }
-    
-    def parse_uncertainty_expression(self):
-        """Parse uncertainty expressions like 22.5 ± 0.1"""
-        # This method should only be called when we encounter UNCERTAINTY token directly
-        # But we need to handle the case where uncertainty follows a number
-        
-        # If we're called directly on uncertainty, we need to check the previous token context
-        # For now, let's return a representation that can be handled
-        uncertainty_value = self.current_token.value
-        self.eat(BOCTokenType.UNCERTAINTY)
-        
-        # Extract numeric part from uncertainty (remove ±)
-        if uncertainty_value.startswith('±'):
-            uncertainty_numeric = uncertainty_value[1:]
-        else:
-            uncertainty_numeric = uncertainty_value
-        
-        return BOCUncertainty(None, float(uncertainty_numeric))  # Base value will be set in context
     
     def parse_array(self):
         """Parse an array expression [item1, item2, ...]"""
