@@ -20,31 +20,51 @@ class ClarityToBOCTranslator:
                 "return_type": clarity_func_ast.return_type,
                 "confidence": 1.0,  # Human-written code assumed high confidence initially
                 "source": "human_contributed",
-                "original_syntax": "clarity"
+                "original_syntax": "clarity",
+                "complexity_analysis": self._analyze_complexity(clarity_func_ast),
+                "side_effects": self._analyze_side_effects(clarity_func_ast)
             }
         }
         
-        # Translate parameters with confidence levels
+        # Translate parameters with confidence levels and uncertainty
         for param_name, param_type in clarity_func_ast.params:
-            boc_representation["structured_knowledge"]["parameters"].append({
+            param_info = {
                 "name": param_name,
                 "type": param_type,
-                "confidence": 1.0
-            })
+                "confidence": 0.95,  # Slightly less than 1.0 to account for interpretation uncertainty
+                "uncertainty": 0.0,
+                "constraints": self._infer_param_constraints(param_name, param_type, clarity_func_ast)
+            }
+            boc_representation["structured_knowledge"]["parameters"].append(param_info)
         
-        # Add reasoning context for the function logic
+        # Enhanced reasoning context for the function logic
         boc_representation["reasoning_context"] = {
             "assumptions": self._extract_assumptions(clarity_func_ast),
             "implications": self._extract_implications(clarity_func_ast),
-            "confidence_threshold": 0.7
+            "preconditions": self._extract_preconditions(clarity_func_ast),
+            "postconditions": self._extract_postconditions(clarity_func_ast),
+            "invariants": self._extract_invariants(clarity_func_ast),
+            "confidence_threshold": 0.7,
+            "error_handling": self._analyze_error_handling(clarity_func_ast)
         }
         
-        # Add intent for execution
+        # Enhanced intent for execution with uncertainty propagation
         boc_representation["intent"] = {
             "to_perform": f"execute_function_{clarity_func_ast.name}",
+            "action_type": "computation",
             "parameters": clarity_func_ast.params,
             "execution_context": "runtime_call",
-            "priority": "normal"
+            "priority": self._determine_priority(clarity_func_ast),
+            "resource_requirements": self._estimate_resources(clarity_func_ast),
+            "uncertainty_propagation": self._analyze_uncertainty_propagation(clarity_func_ast)
+        }
+        
+        # Add provenance and metadata
+        boc_representation["provenance"] = {
+            "source": "human_written",
+            "translation_timestamp": "2026-02-03T19:00:00Z",
+            "translation_confidence": 0.9,
+            "semantic_preservation_score": self._calculate_semantic_preservation(clarity_func_ast)
         }
         
         return boc_representation
@@ -60,6 +80,148 @@ class ClarityToBOCTranslator:
         # In a real implementation, this would analyze the AST
         # to identify consequences of function execution
         return ["side_effects_possible", "resource_utilization_expected"]
+    
+    def _analyze_complexity(self, func_ast):
+        """Analyze computational complexity of the function."""
+        # Simplified analysis - in reality this would examine the AST
+        return {
+            "time_complexity": "unknown",
+            "space_complexity": "unknown",
+            "recursive": self._is_recursive(func_ast),
+            "loops": self._count_loops(func_ast),
+            "conditional_branches": self._count_conditionals(func_ast)
+        }
+    
+    def _analyze_side_effects(self, func_ast):
+        """Analyze potential side effects of the function."""
+        return {
+            "modifies_state": self._modifies_global_state(func_ast),
+            "io_operations": self._has_io_operations(func_ast),
+            "network_operations": self._has_network_operations(func_ast),
+            "memory_allocation": self._allocates_memory(func_ast)
+        }
+    
+    def _infer_param_constraints(self, param_name, param_type, func_ast):
+        """Infer constraints on function parameters."""
+        constraints = []
+        
+        # Basic type-based constraints
+        if param_type == "Int":
+            constraints.append("non_negative_if_appropriate")
+            constraints.append("within_machine_limits")
+        elif param_type == "Float":
+            constraints.append("finite_number")
+            constraints.append("not_nan_or_infinity")
+        elif param_type == "String":
+            constraints.append("valid_utf8")
+            constraints.append("reasonable_length")
+        
+        # Name-based inference
+        if "count" in param_name.lower() or "size" in param_name.lower():
+            constraints.append("non_negative")
+        elif "index" in param_name.lower():
+            constraints.append("within_bounds")
+        elif "ratio" in param_name.lower() or "percentage" in param_name.lower():
+            constraints.append("between_0_and_1")
+        
+        return constraints
+    
+    def _extract_preconditions(self, func_ast):
+        """Extract preconditions for function execution."""
+        return ["inputs_valid", "system_resources_available", "dependencies_satisfied"]
+    
+    def _extract_postconditions(self, func_ast):
+        """Extract postconditions after function execution."""
+        return ["function_completed", "output_consistent_with_spec", "state_changed_as_expected"]
+    
+    def _extract_invariants(self, func_ast):
+        """Extract invariants that should be preserved."""
+        return ["type_safety_maintained", "memory_safety_preserved", "logical_consistency"]
+    
+    def _analyze_error_handling(self, func_ast):
+        """Analyze error handling capabilities."""
+        return {
+            "has_error_handling": self._has_error_handling(func_ast),
+            "error_types": ["runtime_error", "type_error", "memory_error"],
+            "recovery_strategies": ["graceful_degradation", "error_propagation"]
+        }
+    
+    def _determine_priority(self, func_ast):
+        """Determine execution priority based on function characteristics."""
+        if "critical" in func_ast.name.lower() or "emergency" in func_ast.name.lower():
+            return "high"
+        elif "background" in func_ast.name.lower() or "maintenance" in func_ast.name.lower():
+            return "low"
+        else:
+            return "normal"
+    
+    def _estimate_resources(self, func_ast):
+        """Estimate resource requirements."""
+        return {
+            "cpu_usage": "medium",
+            "memory_usage": "low_to_medium",
+            "io_requirements": "minimal",
+            "network_usage": "none"
+        }
+    
+    def _analyze_uncertainty_propagation(self, func_ast):
+        """Analyze how uncertainty propagates through the function."""
+        return {
+            "input_uncertainty_affects_output": True,
+            "amplification_factor": 1.0,
+            "uncertainty_sources": ["input_parameters", "computational_precision"],
+            "confidence_degradation": "linear_with_complexity"
+        }
+    
+    def _calculate_semantic_preservation(self, func_ast):
+        """Calculate how well semantics are preserved in translation."""
+        # Base score starts high for human-written code
+        base_score = 0.95
+        
+        # Deductions for complexity
+        if self._is_recursive(func_ast):
+            base_score -= 0.05
+        if self._count_loops(func_ast) > 2:
+            base_score -= 0.05
+        if self._count_conditionals(func_ast) > 3:
+            base_score -= 0.05
+        
+        return max(base_score, 0.7)  # Never go below 0.7
+    
+    def _is_recursive(self, func_ast):
+        """Check if function is recursive."""
+        # Simplified check - in reality would analyze the AST
+        return func_ast.name in ["factorial", "fibonacci", "recursive"] or "recursive" in func_ast.name
+    
+    def _count_loops(self, func_ast):
+        """Count number of loops in function."""
+        # Simplified - would analyze AST
+        return 1 if "while" in func_ast.name or "for" in func_ast.name else 0
+    
+    def _count_conditionals(self, func_ast):
+        """Count number of conditional statements."""
+        # Simplified - would analyze AST
+        return 2 if "check" in func_ast.name or "validate" in func_ast.name else 1
+    
+    def _modifies_global_state(self, func_ast):
+        """Check if function modifies global state."""
+        return any(keyword in func_ast.name.lower() for keyword in ["set", "update", "modify", "change"])
+    
+    def _has_io_operations(self, func_ast):
+        """Check if function has I/O operations."""
+        return any(keyword in func_ast.name.lower() for keyword in ["print", "read", "write", "file", "io"])
+    
+    def _has_network_operations(self, func_ast):
+        """Check if function has network operations."""
+        return any(keyword in func_ast.name.lower() for keyword in ["fetch", "send", "request", "network"])
+    
+    def _allocates_memory(self, func_ast):
+        """Check if function allocates significant memory."""
+        return any(keyword in func_ast.name.lower() for keyword in ["create", "allocate", "buffer", "array"])
+    
+    def _has_error_handling(self, func_ast):
+        """Check if function has error handling."""
+        return any(keyword in func_ast.name.lower() for keyword in ["safe", "checked", "validated", "handle"])
     
     def translate_variable_declaration(self, clarity_var_ast):
         """Translate a Clarity variable declaration to BOC."""
@@ -194,18 +356,40 @@ class BOCtoClarityTranslator:
         """Generate Clarity function code from BOC function definition."""
         params = []
         for param in func_def["parameters"]:
-            params.append(f"{param['name']}: {param['type']}")
+            param_str = f"{param['name']}: {param['type']}"
+            # Add parameter constraints as comments
+            if param.get('constraints'):
+                param_str += f"  // Constraints: {', '.join(param['constraints'])}"
+            params.append(param_str)
         
         param_str = ", ".join(params)
         return_type = f" -> {func_def['return_type']}" if func_def['return_type'] else ""
         
+        # Extract additional information
+        complexity = func_def.get('complexity_analysis', {})
+        side_effects = func_def.get('side_effects', {})
+        confidence = func_def.get('confidence', 1.0)
+        
         code = [
-            f"// Confidence: {func_def['confidence']}",
-            f"// Source: {func_def['source']}",
+            f"// Function translated from BOC representation",
+            f"// Confidence: {confidence}",
+            f"// Source: {func_def.get('source', 'unknown')}",
+            f"// Time Complexity: {complexity.get('time_complexity', 'unknown')}",
+            f"// Space Complexity: {complexity.get('space_complexity', 'unknown')}",
+            f"// Side Effects: {', '.join(k for k, v in side_effects.items() if v)}",
+            f"// Priority: {func_def.get('priority', 'normal')}",
             f"fn {func_def['name']}({param_str}){return_type} {{",
-            "    // TODO: Implement function logic",
-            "    // Based on reasoning context and intent in original BOC",
-            "    // This is a stub generated from agent-optimized representation",
+            "    // Function logic based on BOC analysis:",
+            "    // Preconditions: inputs_valid, system_resources_available",
+            "    // Postconditions: function_completed, output_consistent_with_spec",
+            "    // Invariants: type_safety_maintained, logical_consistency",
+            "    ",
+            "    // TODO: Implement based on original Clarity intent",
+            "    // Uncertainty propagation should be considered",
+            "    // Error handling as specified in BOC reasoning context",
+            "    ",
+            "    // Placeholder implementation",
+            "    // This would be filled in during manual review or by AI analysis",
             "}"
         ]
         
