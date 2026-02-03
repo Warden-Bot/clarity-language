@@ -1,31 +1,34 @@
-# Clarity Language
+# CLAR - Collaborative Language for AI Reasoning (Prototype)
 
-A dual-layer programming language designed for human-AI collaborative programming.
+A proof-of-concept dual-layer programming language designed for human-AI collaborative programming research. **This is a prototype/experimental implementation, not a production-ready language.**
 
 ## Overview
 
-Clarity is a programming language that features a dual-layer architecture:
+CLAR (pronounced "clare") is an experimental programming language that explores a dual-layer architecture:
 - **Surface Layer**: Human-readable syntax designed for developers
-- **Deep Layer**: Agent-optimized bytecode for AI processing
+- **Deep Layer**: Agent-optimized representation for AI processing
 
-This approach allows for human-readable code while providing efficient representations for AI agents to work with.
+This approach explores possibilities for human-readable code while providing alternative representations for AI agents to work with. This is a Python-based prototype demonstrating the concepts, not a production compiler or runtime.
 
-## Features
 
-- Human-readable syntax
-- AI-optimized bytecode representation
-- Semantic preservation between layers
-- Source mapping for debugging across layers
-- Version compatibility tracking
-- Trust boundary validation
+## Prototype Features
+
+- Human-readable syntax (prototype implementation)
+- AI-oriented bytecode representation (simulated)
+- Experimental semantic preservation techniques
+- Source mapping concepts for cross-layer exploration
+- Version compatibility tracking (conceptual)
+- Trust boundary validation approaches (research-stage)
 
 ## Architecture
 
-The dual-layer architecture ensures that both humans and AI agents can effectively work with the same codebase:
+The dual-layer architecture prototype explores how both humans and AI agents might work with the same codebase:
 - Surface layer optimized for human comprehension and modification
 - Deep layer optimized for AI analysis and transformation
-- Cryptographic proofs ensuring semantic equivalence
-- Comprehensive source maps for cross-layer debugging
+- Cryptographic proof concepts ensuring semantic equivalence (simulated)
+- Source map concepts for cross-layer debugging (basic implementation)
+
+**Important Note**: This is a Python-based simulation of the concepts described. It is not a production implementation of the features claimed.
 
 ## Files
 

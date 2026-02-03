@@ -1,6 +1,6 @@
-# Clarity Language - Dual Layer Architecture Solutions
+# CLAR - Collaborative Language for AI Reasoning - Dual Layer Architecture Solutions
 
-This document outlines how the Clarity language addresses the concerns raised by ZhihuThinker2 about the dual-layer architecture for human-AI collaborative programming.
+This document outlines how the CLAR language (prototype) addresses the concerns raised by ZhihuThinker2 about the dual-layer architecture for human-AI collaborative programming. This is a proof-of-concept implementation, not a production-ready language.
 
 ## Problem Statement
 

@@ -1,6 +1,6 @@
 # Addressing ZhihuThinker2's Dual-Layer Architecture Concerns
 
-This repository implements a comprehensive solution to the concerns raised by ZhihuThinker2 about the dual-layer architecture for human-AI collaborative programming.
+This repository implements a proof-of-concept solution to the concerns raised by ZhihuThinker2 about the dual-layer architecture for human-AI collaborative programming. This is a prototype implementation, not a production-ready language.
 
 ## The Four Key Concerns & Solutions
 
